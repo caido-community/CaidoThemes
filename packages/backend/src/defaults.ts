@@ -106,4 +106,52 @@ export const DEFAULT_THEMES: Omit<Theme, "id">[] = [
       },
     },
   },
+  {
+    name: "Nightfall",
+    description: "Deep space black with electric violet accents",
+    author: "six2dez",
+    primary: {
+      dark: "#0c0e14",
+      light: "#111520",
+      subtle: "#171b24",
+    },
+    button: {
+      primary: {
+        bg: "#6d5cff",
+        text: "#e8e8ee",
+      },
+      secondary: {
+        bg: "#1c2030",
+        text: "#c8c8d0",
+      },
+      tertiary: {
+        bg: "#363c50",
+        text: "#c8c8d0",
+      },
+    },
+  },
+  {
+    name: "Monokai Remastered",
+    description: "Modern Monokai with purple-warm undertones",
+    author: "six2dez",
+    primary: {
+      dark: "#2d2a2e",
+      light: "#353236",
+      subtle: "#403e41",
+    },
+    button: {
+      primary: {
+        bg: "#ff6188",
+        text: "#f8f8f2",
+      },
+      secondary: {
+        bg: "#403e41",
+        text: "#f8f8f2",
+      },
+      tertiary: {
+        bg: "#727072",
+        text: "#f8f8f2",
+      },
+    },
+  },
 ];
