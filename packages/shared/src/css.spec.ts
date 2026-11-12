@@ -77,6 +77,39 @@ describe("buildThemeCss", () => {
   });
 });
 
+describe("derived colors that follow other derived colors", () => {
+  it("derives default buttons and their hover from the panel color", () => {
+    const css = buildThemeCss(
+      theme({ "--color-surface-raised": { dark: "#202020" } }),
+    );
+
+    expect(css).toContain("--color-fill-neutral-subtle: #404040;");
+    expect(css).toContain("--color-fill-neutral-subtle-hover: #5b5b5b;");
+  });
+
+  it("derives every accent color from the accent", () => {
+    const css = buildThemeCss(
+      theme({ "--color-fg-secondary": { dark: "#77c2f5" } }),
+    );
+
+    expect(css).toContain("--color-line-selected: #77c2f5;");
+    expect(css).toContain("--color-line-focus: #87d3ff;");
+    expect(css).toContain("--color-surface-selection: #6bb5e829;");
+  });
+
+  it("derives from a color the user set instead of from a derived one", () => {
+    const css = buildThemeCss(
+      theme({
+        "--color-surface-raised": { dark: "#202020" },
+        "--color-fill-neutral-subtle": { dark: "#ff0000" },
+      }),
+    );
+
+    expect(css).toContain("--color-fill-neutral-subtle: #ff0000;");
+    expect(css).not.toContain("--color-fill-neutral-subtle-hover: #5b5b5b;");
+  });
+});
+
 describe("derivedFrom", () => {
   it("names the token a missing color follows", () => {
     const tokens = { "--color-surface-raised": { dark: "#202020" } };

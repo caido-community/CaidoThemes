@@ -1,6 +1,6 @@
 import type { TokenName } from "@caido/tokens";
 
-import { adjustLightness } from "./color";
+import { adjustLightness, withAlpha } from "./color";
 import type { ThemeContent } from "./schemas";
 import {
   DERIVATIONS,
@@ -18,43 +18,60 @@ const isThemeToken = (token: string): token is ThemeToken =>
 const colorOf = (tokens: Tokens, token: string, mode: Mode) =>
   isThemeToken(token) ? tokens[token]?.[mode] : undefined;
 
+const declaration = (token: TokenName, color: string | undefined) =>
+  color === undefined ? [] : [`${token}: ${color};`];
+
 const explicitDeclarations = (tokens: Tokens, mode: Mode) =>
-  THEME_TOKENS.flatMap((token) => {
-    const color = tokens[token]?.[mode];
-    return color === undefined ? [] : [`${token}: ${color};`];
-  });
+  THEME_TOKENS.flatMap((token) => declaration(token, tokens[token]?.[mode]));
 
-const findDerivation = (tokens: Tokens, token: TokenName, mode: Mode) =>
-  DERIVATIONS.find(
-    (derivation) =>
-      derivation.token === token &&
-      tokens[derivation.from]?.[mode] !== undefined,
-  );
+const findDerivation = (token: TokenName) =>
+  DERIVATIONS.find((derivation) => derivation.token === token);
 
-export const derivedFrom = (tokens: Tokens, token: ThemeToken, mode: Mode) =>
-  findDerivation(tokens, token, mode)?.from;
+const resolvedColor = (
+  tokens: Tokens,
+  token: TokenName,
+  mode: Mode,
+): string | undefined =>
+  colorOf(tokens, token, mode) ?? derivedColor(tokens, token, mode);
 
-export const derivedColor = (tokens: Tokens, token: TokenName, mode: Mode) => {
-  const derivation = findDerivation(tokens, token, mode);
+export const derivedColor = (
+  tokens: Tokens,
+  token: TokenName,
+  mode: Mode,
+): string | undefined => {
+  const derivation = findDerivation(token);
   if (derivation === undefined) {
     return undefined;
   }
 
-  const base = tokens[derivation.from]?.[mode];
-  return base === undefined
+  const base = resolvedColor(tokens, derivation.from, mode);
+  if (base === undefined) {
+    return undefined;
+  }
+
+  const adjusted = adjustLightness(base, derivation.lightness[mode]);
+  return derivation.alpha === undefined
+    ? adjusted
+    : withAlpha(adjusted, derivation.alpha);
+};
+
+export const derivedFrom = (tokens: Tokens, token: ThemeToken, mode: Mode) => {
+  const derivation = findDerivation(token);
+  if (derivation === undefined || !isThemeToken(derivation.from)) {
+    return undefined;
+  }
+
+  return resolvedColor(tokens, derivation.from, mode) === undefined
     ? undefined
-    : adjustLightness(base, derivation.lightness[mode]);
+    : derivation.from;
 };
 
 const derivedDeclarations = (tokens: Tokens, mode: Mode) =>
-  DERIVATIONS.flatMap(({ token }) => {
-    const color = derivedColor(tokens, token, mode);
-    if (color === undefined || colorOf(tokens, token, mode) !== undefined) {
-      return [];
-    }
-
-    return [`${token}: ${color};`];
-  });
+  DERIVATIONS.flatMap(({ token }) =>
+    colorOf(tokens, token, mode) === undefined
+      ? declaration(token, derivedColor(tokens, token, mode))
+      : [],
+  );
 
 export const buildThemeCss = (theme: ThemeContent) =>
   MODES.flatMap((mode) => {

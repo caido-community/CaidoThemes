@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { adjustLightness, oklchToHex, toOpaqueHex } from "./color";
+import { adjustLightness, oklchToHex, withAlpha } from "./color";
 
 describe("adjustLightness", () => {
   it("returns the same color when nothing changes", () => {
@@ -42,9 +42,9 @@ describe("oklchToHex", () => {
   });
 });
 
-describe("toOpaqueHex", () => {
-  it("gives the six digit form a color picker accepts", () => {
-    expect(toOpaqueHex("#daa04a29")).toBe("#daa04a");
-    expect(toOpaqueHex("#abc")).toBe("#aabbcc");
+describe("withAlpha", () => {
+  it("replaces the alpha of a color, expanding short hex", () => {
+    expect(withAlpha("#daa04a29", 0.5)).toBe("#daa04a80");
+    expect(withAlpha("#abc", 1)).toBe("#aabbccff");
   });
 });

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { error, ok, type Result } from "../result";
 import { THEME_TOKENS } from "../tokens";
 
-export const HexColorSchema = z
+const HexColorSchema = z
   .string()
   .regex(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i, "Expected a hex color");
 
@@ -23,7 +23,6 @@ export const ThemeV2Schema = z.object({
   tokens: z.partialRecord(z.enum(THEME_TOKENS), TokenColorsSchema),
 });
 
-export type TokenColors = z.infer<typeof TokenColorsSchema>;
 export type ThemeContent = z.infer<typeof ThemeV2Schema>;
 export type Theme = ThemeContent & { id: string };
 

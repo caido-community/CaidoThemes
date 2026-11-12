@@ -31,14 +31,13 @@ const parseHex = (hex: string) => {
   return { rgb, alpha: digits.slice(6) };
 };
 
+const toHexByte = (value: number) =>
+  Math.round(clamp(value, 0, 1) * 255)
+    .toString(16)
+    .padStart(2, "0");
+
 const formatHex = (rgb: Rgb, alpha: string) =>
-  `#${rgb
-    .map((channel) =>
-      Math.round(clamp(channel, 0, 1) * 255)
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("")}${alpha}`;
+  `#${rgb.map(toHexByte).join("")}${alpha}`;
 
 const rgbToOklch = ([red, green, blue]: Rgb): Oklch => {
   const [r, g, b] = [toLinear(red), toLinear(green), toLinear(blue)];
@@ -79,15 +78,10 @@ export const adjustLightness = (hex: string, delta: number) => {
   return formatHex(oklchToRgb(adjusted), alpha);
 };
 
-export const toOpaqueHex = (hex: string) => `#${expandHex(hex).slice(0, 6)}`;
+const toOpaqueHex = (hex: string) => `#${expandHex(hex).slice(0, 6)}`;
 
 const OKLCH_PATTERN =
   /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/;
-
-const formatAlpha = (alpha: number) =>
-  Math.round(clamp(alpha, 0, 1) * 255)
-    .toString(16)
-    .padStart(2, "0");
 
 export const oklchToHex = (value: string) => {
   const match = OKLCH_PATTERN.exec(value.trim());
@@ -101,5 +95,8 @@ export const oklchToHex = (value: string) => {
     c: Number(chroma),
     h: (Number(hue) * Math.PI) / 180,
   });
-  return formatHex(rgb, alpha === undefined ? "" : formatAlpha(Number(alpha)));
+  return formatHex(rgb, alpha === undefined ? "" : toHexByte(Number(alpha)));
 };
+
+export const withAlpha = (hex: string, alpha: number) =>
+  `${toOpaqueHex(hex)}${toHexByte(alpha)}`;

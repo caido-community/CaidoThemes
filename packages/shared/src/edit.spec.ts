@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildThemeCss } from "./css";
-import { setTokenColor } from "./edit";
+import { setTokenColor, usedColors } from "./edit";
 import type { ThemeContent } from "./schemas";
 
 const theme: ThemeContent = {
@@ -37,5 +37,19 @@ describe("setTokenColor", () => {
     setTokenColor(theme, "--color-surface-page", "dark", "#111111");
 
     expect(theme.tokens["--color-surface-page"]?.dark).toBe("#000000");
+  });
+});
+
+describe("usedColors", () => {
+  it("lists each color the theme sets once, for one appearance", () => {
+    const edited = setTokenColor(
+      theme,
+      "--color-surface-subtle",
+      "dark",
+      "#000000",
+    );
+
+    expect(usedColors(edited, "dark")).toEqual(["#000000"]);
+    expect(usedColors(edited, "light")).toEqual(["#ffffff"]);
   });
 });
