@@ -1,94 +1,61 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CaidoSDK } from "@/types";
-import { Theme } from "shared";
+import type { Theme } from "shared";
+
+import { useSDK } from "@/stores/sdk";
+import { deactivateTheme, getActiveThemeId } from "@/themes/activeTheme";
 import { handleResult } from "@/utils/api-calls";
-import { create } from "zustand";
-import { resetTheme, usedThemeID } from "@/themes/switcher";
 
 const THEMES_QUERY_KEY = ["themes"];
 
-interface ThemeLocalStore {
-  selectedThemeID: string | null;
-  setSelectedThemeID: (themeID: string | null) => void;
-}
+export const useThemes = () => {
+  const sdk = useSDK();
 
-const useThemeLocalStore = create<ThemeLocalStore>((set) => ({
-  selectedThemeID: localStorage.getItem("caidothemes:theme") || null,
-  setSelectedThemeID: (themeID) => set({ selectedThemeID: themeID }),
-}));
-
-function useThemes(sdk: CaidoSDK) {
-  return useQuery<Theme[], Error>({
+  return useQuery({
     queryKey: THEMES_QUERY_KEY,
     queryFn: () => handleResult(sdk.backend.getThemes(), sdk),
-    staleTime: 1000 * 60 * 5,
   });
-}
+};
 
-function useTheme(sdk: CaidoSDK, themeID: string) {
-  return useQuery<Theme, Error>({
-    queryKey: [THEMES_QUERY_KEY, themeID],
-    queryFn: () => handleResult(sdk.backend.getTheme(themeID), sdk),
-  });
-}
-
-function useUpdateTheme(sdk: CaidoSDK) {
+const useThemesMutation = <TInput, TOutput>(
+  mutationFn: (input: TInput) => Promise<TOutput>,
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      themeID,
-      updatedTheme,
-    }: {
-      themeID: string;
-      updatedTheme: Partial<Theme>;
-    }) => handleResult(sdk.backend.updateTheme(themeID, updatedTheme), sdk),
-    onSuccess: (data) => {
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
+    mutationFn,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: THEMES_QUERY_KEY }),
   });
-}
+};
 
-function useAddTheme(sdk: CaidoSDK) {
-  const queryClient = useQueryClient();
+export const useAddTheme = () => {
+  const sdk = useSDK();
+  return useThemesMutation((input: unknown) =>
+    handleResult(sdk.backend.addTheme(input), sdk),
+  );
+};
 
-  return useMutation({
-    mutationFn: (newTheme: Omit<Theme, "id">) =>
-      handleResult(sdk.backend.addTheme(newTheme), sdk),
-    onSuccess: (data) => {
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
+export const useUpdateTheme = () => {
+  const sdk = useSDK();
+  return useThemesMutation(({ id, ...content }: Theme) =>
+    handleResult(sdk.backend.updateTheme(id, content), sdk),
+  );
+};
+
+export const useRemoveTheme = () => {
+  const sdk = useSDK();
+  return useThemesMutation(async (id: string) => {
+    await handleResult(sdk.backend.removeTheme(id), sdk);
+    if (getActiveThemeId() === id) {
+      deactivateTheme();
+    }
   });
-}
+};
 
-function useRemoveTheme(sdk: CaidoSDK) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (themeID: string) =>
-      handleResult(sdk.backend.removeTheme(themeID), sdk),
-    onSuccess: (data, variables) => {
-      const currentSelectedTheme =
-        useThemeLocalStore.getState().selectedThemeID;
-
-      if (usedThemeID === variables) {
-        resetTheme();
-      }
-
-      if (currentSelectedTheme === variables) {
-        useThemeLocalStore.setState({ selectedThemeID: null });
-      }
-
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
+export const useResetThemes = () => {
+  const sdk = useSDK();
+  return useThemesMutation(async () => {
+    await handleResult(sdk.backend.resetThemes(), sdk);
+    deactivateTheme();
   });
-}
-
-export {
-  useThemes,
-  useAddTheme,
-  useRemoveTheme,
-  useThemeLocalStore as useThemeStore,
-  useTheme,
-  useUpdateTheme,
 };

@@ -5,7 +5,6 @@
     "types": ["@caido/sdk-backend", "node"],
     "baseUrl": ".",
     "noResolve": false,
-    "moduleResolution": "node",
     "paths": {
       "@/*": ["src/*"]
     }

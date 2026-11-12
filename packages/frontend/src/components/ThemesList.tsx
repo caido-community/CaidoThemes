@@ -1,6 +1,15 @@
-import { useSDK } from "@/stores/sdk";
-import { useRemoveTheme, useThemes, useThemeStore } from "@/stores/themes";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  ListItemIcon,
+  Menu,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -8,186 +17,139 @@ import {
   TableHead,
   TableRow,
   Typography,
-  Button,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  Dialog,
-  DialogContentText,
-  DialogContent,
-  DialogActions,
-  DialogTitle,
 } from "@mui/material";
 import { StyledBox } from "caido-material-ui";
-import { useAddTheme } from "@/stores/themes";
 import { useState } from "react";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import FileUploadIcon from "@mui/icons-material/FileUpload";
-import { useQueryClient } from "@tanstack/react-query";
+import type { Theme, ThemeContent } from "shared";
 
-export const ThemesList = () => {
+import { useSDK } from "@/stores/sdk";
+import { useAddTheme, useRemoveTheme, useResetThemes } from "@/stores/themes";
+import { pickThemeFile } from "@/themes/files";
+
+type ThemesListProps = {
+  themes: Theme[];
+  selectedId: string | undefined;
+  onSelect: (id: string | undefined) => void;
+};
+
+const NEW_THEME: ThemeContent = {
+  version: 2,
+  name: "New theme",
+  description: "",
+  author: "",
+  tokens: {},
+};
+
+export function ThemesList({ themes, selectedId, onSelect }: ThemesListProps) {
   const sdk = useSDK();
-  const queryClient = useQueryClient();
+  const { mutate: addTheme } = useAddTheme();
+  const { mutate: removeTheme } = useRemoveTheme();
+  const { mutate: resetThemes } = useResetThemes();
 
-  const { data: themes } = useThemes(sdk);
-  const { selectedThemeID, setSelectedThemeID } = useThemeStore();
-  const { mutate: addTheme } = useAddTheme(sdk);
-  const { mutate: removeTheme } = useRemoveTheme(sdk);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const handleAdd = () =>
+    addTheme(NEW_THEME, { onSuccess: (theme) => onSelect(theme.id) });
 
-  const handleAddTheme = () => {
-    addTheme({
-      name: "New Theme " + Date.now(),
-      description: "This is easily the best theme ever created",
-      author: "awesome-someone",
-      primary: {
-        dark: "#25272d",
-        light: "#353942",
-        subtle: "#2f323a",
+  const handleImport = async () => {
+    setMenuAnchor(null);
+    const input = await pickThemeFile();
+    addTheme(input, {
+      onSuccess: (theme) => {
+        onSelect(theme.id);
+        sdk.window.showToast("Theme imported", { variant: "success" });
       },
     });
-
-    sdk.window.showToast("New theme created", {
-      variant: "success",
-    });
   };
 
-  const handleRemoveTheme = (themeId: string) => {
-    removeTheme(themeId);
-
-    sdk.window.showToast("Theme deleted", {
-      variant: "success",
-    });
+  const handleReset = () => {
+    setIsResetDialogOpen(false);
+    resetThemes(undefined, { onSuccess: () => onSelect(undefined) });
   };
 
-  const handleImportTheme = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = (event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const themeData = JSON.parse(e.target?.result as string);
-            addTheme(themeData);
-            sdk.window.showToast("Theme imported successfully", {
-              variant: "success",
-            });
-          } catch (error) {
-            sdk.window.showToast("Error importing theme", { variant: "error" });
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
-
-  const handleResetThemes = async () => {
-    await sdk.backend.resetThemes();
-
-    sdk.window.showToast("Themes reset", {
-      variant: "success",
-    });
-  };
-  const [openResetDialog, setOpenResetDialog] = useState(false);
-
-  const handleOpenResetDialog = () => {
-    setOpenResetDialog(true);
-    setAnchorEl(null);
-  };
-
-  const handleCloseResetDialog = () => {
-    setOpenResetDialog(false);
-  };
-
-  const handleConfirmReset = async () => {
-    await handleResetThemes();
-    handleCloseResetDialog();
-    setSelectedThemeID(null);
-    queryClient.invalidateQueries({ queryKey: ["themes"] });
-  };
   return (
     <StyledBox>
       <div className="flex justify-between items-center p-5">
-        <Typography sx={{ fontWeight: "bold" }} variant="h5">
+        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Themes
         </Typography>
         <div className="flex gap-2">
           <Button
             variant="outlined"
-            color="primary"
             aria-haspopup="true"
-            onClick={(event) => setAnchorEl(event.currentTarget)}
+            onClick={(event) => setMenuAnchor(event.currentTarget)}
           >
             Actions
           </Button>
           <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => setAnchorEl(null)}
+            anchorEl={menuAnchor}
+            open={menuAnchor !== null}
+            onClose={() => setMenuAnchor(null)}
           >
-            <MenuItem onClick={handleOpenResetDialog}>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                setIsResetDialogOpen(true);
+              }}
+            >
               <ListItemIcon>
                 <RestartAltIcon fontSize="small" />
               </ListItemIcon>
               Reset
             </MenuItem>
-            <MenuItem onClick={handleImportTheme}>
+            <MenuItem onClick={handleImport}>
               <ListItemIcon>
                 <FileUploadIcon fontSize="small" />
               </ListItemIcon>
               Import
             </MenuItem>
           </Menu>
-          <Button variant="contained" color="primary" onClick={handleAddTheme}>
+          <Button variant="contained" onClick={handleAdd}>
             New
           </Button>
         </div>
-        <Dialog
-          open={openResetDialog}
-          onClose={handleCloseResetDialog}
-          aria-labelledby="alert-dialog-title"
-          aria-describedby="alert-dialog-description"
-        >
-          <DialogTitle id="alert-dialog-title">{"Reset Themes?"}</DialogTitle>
-          <DialogContent>
-            <DialogContentText id="alert-dialog-description">
-              Are you sure you want to reset all themes? This action cannot be
-              undone.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseResetDialog} color="primary">
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmReset} color="primary" autoFocus>
-              Confirm
-            </Button>
-          </DialogActions>
-        </Dialog>
       </div>
 
-      <TableContainer sx={{ overflow: 'auto', maxHeight: 'calc(100vh - 150px)' }}>
+      <Dialog
+        open={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
+        aria-labelledby="reset-themes-title"
+      >
+        <DialogTitle id="reset-themes-title">Reset themes?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This deletes every theme and restores the built-in ones. It cannot
+            be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsResetDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleReset} autoFocus>
+            Reset
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <TableContainer
+        sx={{ overflow: "auto", maxHeight: "calc(100vh - 150px)" }}
+      >
         <Table stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>Name</TableCell>
-              <TableCell sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>Description</TableCell>
-              <TableCell sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>Author</TableCell>
-              <TableCell sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>Actions</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Author</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {themes?.map((theme) => (
+            {themes.map((theme) => (
               <TableRow
-                key={theme.id}
-                onClick={() => setSelectedThemeID(theme.id)}
-                selected={selectedThemeID === theme.id}
                 hover
+                key={theme.id}
+                selected={theme.id === selectedId}
+                onClick={() => onSelect(theme.id)}
               >
                 <TableCell>{theme.name}</TableCell>
                 <TableCell>{theme.description}</TableCell>
@@ -195,10 +157,9 @@ export const ThemesList = () => {
                 <TableCell>
                   <Button
                     variant="outlined"
-                    color="primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveTheme(theme.id);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeTheme(theme.id);
                     }}
                   >
                     Delete
@@ -211,4 +172,4 @@ export const ThemesList = () => {
       </TableContainer>
     </StyledBox>
   );
-};
+}

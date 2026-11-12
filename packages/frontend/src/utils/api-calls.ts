@@ -1,9 +1,10 @@
-import { CaidoSDK } from "@/types";
-import { Result } from "shared";
+import type { Result } from "shared";
+
+import type { CaidoSDK } from "@/types";
 
 export async function handleResult<T>(
   promise: Promise<Result<T>>,
-  sdk: CaidoSDK
+  sdk: CaidoSDK,
 ) {
   const result = await promise;
 
