@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildThemeCss } from "./css";
-import { setTokenColor, usedColors } from "./edit";
+import { isSameTheme, setTokenColor, usedColors } from "./edit";
 import type { ThemeContent } from "./schemas";
 
 const theme: ThemeContent = {
@@ -51,5 +51,41 @@ describe("usedColors", () => {
 
     expect(usedColors(edited, "dark")).toEqual(["#000000"]);
     expect(usedColors(edited, "light")).toEqual(["#ffffff"]);
+  });
+});
+
+describe("isSameTheme", () => {
+  it("treats a color that was set and cleared again as unchanged", () => {
+    const edited = setTokenColor(
+      setTokenColor(theme, "--color-fg-default", "dark", "#123456"),
+      "--color-fg-default",
+      "dark",
+      "",
+    );
+
+    expect(edited.tokens["--color-fg-default"]).toBeUndefined();
+    expect(isSameTheme(edited, theme)).toBe(true);
+  });
+
+  it("ignores the order tokens were set in", () => {
+    const cleared = setTokenColor(theme, "--color-surface-page", "dark", "");
+    const reordered = setTokenColor(
+      cleared,
+      "--color-surface-page",
+      "dark",
+      "#000000",
+    );
+
+    expect(isSameTheme(reordered, theme)).toBe(true);
+  });
+
+  it("notices a changed color or name", () => {
+    expect(
+      isSameTheme(
+        setTokenColor(theme, "--color-surface-page", "dark", "#111111"),
+        theme,
+      ),
+    ).toBe(false);
+    expect(isSameTheme({ ...theme, name: "Other" }, theme)).toBe(false);
   });
 });

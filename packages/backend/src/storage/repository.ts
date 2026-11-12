@@ -25,6 +25,11 @@ export const toTheme = (id: string, stored: unknown): Theme | undefined => {
 
 const fromRow = ({ id, data }: ThemeRow) => toTheme(id, parseJson(data));
 
+const toRow = ({ id, ...content }: Theme) => [id, JSON.stringify(content)];
+
+const placeholders = (count: number, placeholder: string) =>
+  Array.from({ length: count }, () => placeholder).join(", ");
+
 export const createThemeRepository = (db: Database) => {
   const list = async () => {
     const rows = await queryAll<ThemeRow>(
@@ -43,12 +48,11 @@ export const createThemeRepository = (db: Database) => {
     return row === undefined ? undefined : fromRow(row);
   };
 
-  const save = async ({ id, ...content }: Theme) => {
+  const save = async (theme: Theme) => {
     await run(
       db,
       `INSERT INTO ${THEMES_TABLE} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
-      id,
-      JSON.stringify(content),
+      ...toRow(theme),
     );
   };
 
@@ -63,10 +67,19 @@ export const createThemeRepository = (db: Database) => {
   };
 
   const reset = async () => {
-    await db.exec(`DELETE FROM ${THEMES_TABLE}`);
-    for (const preset of PRESETS) {
-      await create(preset);
-    }
+    const presets = PRESETS.map((preset) => ({ id: randomUUID(), ...preset }));
+    const ids = presets.map(({ id }) => id);
+
+    await run(
+      db,
+      `INSERT INTO ${THEMES_TABLE} (id, data) VALUES ${placeholders(presets.length, "(?, ?)")}`,
+      ...presets.flatMap(toRow),
+    );
+    await run(
+      db,
+      `DELETE FROM ${THEMES_TABLE} WHERE id NOT IN (${placeholders(ids.length, "?")})`,
+      ...ids,
+    );
   };
 
   return { list, get, save, create, remove, reset };

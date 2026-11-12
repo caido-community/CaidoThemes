@@ -22,16 +22,24 @@ import { computed, ref } from "vue";
 
 import ColorField from "@/components/ColorField.vue";
 import FormField from "@/components/FormField.vue";
+import { useDiscardGuard } from "@/composables/useDiscardGuard";
 import { useThemesStore } from "@/stores/themes";
 import { getCurrentMode } from "@/themes/activeTheme";
 import { describeFallback } from "@/themes/fallback";
 
-const { theme } = defineProps<{
-  theme: Theme;
+const { draft } = defineProps<{
+  draft: Theme;
 }>();
 
-const { activeThemeId, closeEditor, exportTheme, save, saveAndApply } =
-  useThemesStore();
+const {
+  activeThemeId,
+  closeEditor,
+  updateDraft,
+  exportTheme,
+  save,
+  saveAndApply,
+} = useThemesStore();
+const guardUnsavedChanges = useDiscardGuard();
 
 const MODE_OPTIONS = [
   { label: "Light", value: "light" },
@@ -40,24 +48,21 @@ const MODE_OPTIONS = [
 
 const OPEN_GROUPS = ["Backgrounds"];
 
-const draft = ref<Theme>({ ...theme });
 const mode = ref<Mode>(getCurrentMode());
 
-const colorOf = (token: ThemeToken) =>
-  draft.value.tokens[token]?.[mode.value] ?? "";
+const colorOf = (token: ThemeToken) => draft.tokens[token]?.[mode.value] ?? "";
 
-const setColor = (token: ThemeToken, color: string) => {
-  draft.value = setTokenColor(draft.value, token, mode.value, color);
-};
+const setColor = (token: ThemeToken, color: string) =>
+  updateDraft(setTokenColor(draft, token, mode.value, color));
 
-const themeColors = computed(() => usedColors(draft.value, mode.value));
+const themeColors = computed(() => usedColors(draft, mode.value));
 
 const saveOptions = computed<MenuItem[]>(() => [
   {
     label: "Save and apply",
     icon: "fas fa-check",
-    disabled: activeThemeId.value === theme.id,
-    command: () => saveAndApply(draft.value),
+    disabled: activeThemeId.value === draft.id,
+    command: () => saveAndApply(),
   },
 ]);
 
@@ -77,20 +82,34 @@ const countCustomColors = (tokens: readonly ThemeToken[]) =>
         text
         severity="contrast"
         aria-label="Close editor"
-        @click="closeEditor"
+        @click="guardUnsavedChanges(closeEditor)"
       />
     </div>
 
     <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-4">
       <section class="grid grid-cols-2 gap-4">
         <FormField v-slot="{ id }" label="Name">
-          <InputText :id="id" v-model="draft.name" />
+          <InputText
+            :id="id"
+            :model-value="draft.name"
+            @update:model-value="updateDraft({ name: $event ?? '' })"
+          />
         </FormField>
         <FormField v-slot="{ id }" label="Author">
-          <InputText :id="id" v-model="draft.author" />
+          <InputText
+            :id="id"
+            :model-value="draft.author"
+            @update:model-value="updateDraft({ author: $event ?? '' })"
+          />
         </FormField>
         <FormField v-slot="{ id }" label="Description" class="col-span-2">
-          <Textarea :id="id" v-model="draft.description" rows="2" auto-resize />
+          <Textarea
+            :id="id"
+            :model-value="draft.description"
+            rows="2"
+            auto-resize
+            @update:model-value="updateDraft({ description: $event })"
+          />
         </FormField>
       </section>
 
@@ -150,7 +169,7 @@ const countCustomColors = (tokens: readonly ThemeToken[]) =>
         label="Save"
         icon="fas fa-floppy-disk"
         :model="saveOptions"
-        @click="save(draft)"
+        @click="save()"
       />
     </div>
   </div>

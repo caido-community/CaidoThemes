@@ -8,6 +8,7 @@ import {
 } from "./repository";
 import { queryAll, queryOne } from "./sql";
 
+const SCHEMA_VERSION = 2;
 const LEGACY_TABLE = "themes";
 const LEGACY_BACKUP_TABLE = "themes_v1";
 
@@ -76,10 +77,16 @@ const migrateLegacyThemes = async (
   );
 };
 
+const schemaVersion = async (db: Database) => {
+  const row = await queryOne<{ user_version: number }>(
+    db,
+    "PRAGMA user_version",
+  );
+  return row?.user_version ?? 0;
+};
+
 export const setupThemeStorage = async (db: Database) => {
-  const hasLegacyThemes = await tableExists(db, LEGACY_TABLE);
-  const isFirstLaunch =
-    !hasLegacyThemes && !(await tableExists(db, THEMES_TABLE));
+  const isSetUp = (await schemaVersion(db)) >= SCHEMA_VERSION;
 
   await db.exec(
     `CREATE TABLE IF NOT EXISTS ${THEMES_TABLE} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
@@ -87,13 +94,12 @@ export const setupThemeStorage = async (db: Database) => {
 
   const repository = createThemeRepository(db);
 
-  if (hasLegacyThemes) {
+  if (await tableExists(db, LEGACY_TABLE)) {
     await migrateLegacyThemes(db, repository);
-  }
-
-  if (isFirstLaunch) {
+  } else if (!isSetUp && (await repository.list()).length === 0) {
     await repository.reset();
   }
 
+  await db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return repository;
 };

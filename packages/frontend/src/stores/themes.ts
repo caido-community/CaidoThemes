@@ -1,4 +1,12 @@
-import type { Result, Theme, ThemeContent } from "shared";
+import {
+  error,
+  isSameTheme,
+  parseJson,
+  type Result,
+  type Theme,
+  type ThemeContent,
+  validateTheme,
+} from "shared";
 import { computed, inject, type InjectionKey, ref } from "vue";
 
 import {
@@ -17,19 +25,33 @@ const NEW_THEME: ThemeContent = {
   tokens: {},
 };
 
+const messageOf = (reason: unknown) =>
+  reason instanceof Error ? reason.message : "Something went wrong";
+
 export const createThemesStore = (sdk: CaidoSDK) => {
   const themes = ref<Theme[]>([]);
   const activeThemeId = ref(getActiveThemeId());
   const editingId = ref<string | undefined>(undefined);
+  const draft = ref<Theme | undefined>(undefined);
+
   const editingTheme = computed(() =>
     themes.value.find((theme) => theme.id === editingId.value),
+  );
+
+  const hasUnsavedChanges = computed(
+    () =>
+      draft.value !== undefined &&
+      editingTheme.value !== undefined &&
+      !isSameTheme(draft.value, editingTheme.value),
   );
 
   const toast = (message: string, variant: "success" | "error") =>
     sdk.window.showToast(message, { variant });
 
   const request = async <T>(promise: Promise<Result<T>>) => {
-    const result = await promise;
+    const result = await promise.catch((reason: unknown) =>
+      error(messageOf(reason)),
+    );
     if (result.kind === "Error") {
       toast(result.error, "error");
       return undefined;
@@ -47,9 +69,17 @@ export const createThemesStore = (sdk: CaidoSDK) => {
 
   const edit = (id: string | undefined) => {
     editingId.value = id;
+    const theme = themes.value.find((each) => each.id === id);
+    draft.value = theme === undefined ? undefined : { ...theme };
   };
 
   const closeEditor = () => edit(undefined);
+
+  const updateDraft = (changes: Partial<ThemeContent>) => {
+    if (draft.value !== undefined) {
+      draft.value = { ...draft.value, ...changes };
+    }
+  };
 
   const apply = (theme: Theme) => {
     activateTheme(theme);
@@ -83,23 +113,50 @@ export const createThemesStore = (sdk: CaidoSDK) => {
   const create = () => add(NEW_THEME);
 
   const importFromFile = async () => {
-    const theme = await add(await pickThemeFile());
+    const file = await pickThemeFile();
+    if (file === undefined) {
+      return;
+    }
+
+    const text = await file.text().catch(() => undefined);
+    if (text === undefined) {
+      toast("The file could not be read", "error");
+      return;
+    }
+
+    const theme = await add(parseJson(text));
     if (theme !== undefined) {
       toast("Theme imported", "success");
     }
   };
 
-  const update = async ({ id, ...content }: Theme) => {
+  const exportTheme = ({ id: _id, ...content }: Theme) => {
+    const result = validateTheme(content);
+    if (result.kind === "Error") {
+      toast(result.error, "error");
+      return;
+    }
+
+    downloadTheme(result.value);
+  };
+
+  const saveDraft = async () => {
+    if (draft.value === undefined) {
+      return undefined;
+    }
+
+    const { id, ...content } = draft.value;
     const theme = await request(sdk.backend.updateTheme(id, content));
     if (theme !== undefined) {
       await load();
+      edit(theme.id);
     }
 
     return theme;
   };
 
-  const save = async (draft: Theme) => {
-    const theme = await update(draft);
+  const save = async () => {
+    const theme = await saveDraft();
     if (theme === undefined) {
       return;
     }
@@ -110,8 +167,8 @@ export const createThemesStore = (sdk: CaidoSDK) => {
     toast("Theme saved", "success");
   };
 
-  const saveAndApply = async (draft: Theme) => {
-    const theme = await update(draft);
+  const saveAndApply = async () => {
+    const theme = await saveDraft();
     if (theme === undefined) {
       return;
     }
@@ -150,16 +207,18 @@ export const createThemesStore = (sdk: CaidoSDK) => {
   return {
     themes,
     activeThemeId,
-    editingTheme,
+    draft,
+    hasUnsavedChanges,
     load,
     edit,
     closeEditor,
+    updateDraft,
     apply,
     restoreActiveTheme,
     turnOff,
     create,
     importFromFile,
-    exportTheme: downloadTheme,
+    exportTheme,
     save,
     saveAndApply,
     remove,

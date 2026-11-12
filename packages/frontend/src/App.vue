@@ -8,7 +8,7 @@ import ThemesList from "@/components/ThemesList.vue";
 import { useThemesStore } from "@/stores/themes";
 import { supportsDesignTokens } from "@/themes/activeTheme";
 
-const { editingTheme } = useThemesStore();
+const { draft } = useThemesStore();
 const isSupported = supportsDesignTokens();
 </script>
 
@@ -22,8 +22,8 @@ const isSupported = supportsDesignTokens();
       <Panel class="min-w-0 flex-1">
         <ThemesList />
       </Panel>
-      <Panel v-if="editingTheme !== undefined" class="w-128 shrink-0">
-        <ThemeEditor :key="editingTheme.id" :theme="editingTheme" />
+      <Panel v-if="draft !== undefined" class="w-128 shrink-0">
+        <ThemeEditor :key="draft.id" :draft="draft" />
       </Panel>
     </template>
     <ConfirmDialog />

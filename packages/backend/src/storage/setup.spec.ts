@@ -5,6 +5,7 @@ import { PRESETS } from "shared";
 import type { Database, Parameter } from "sqlite";
 import { describe, expect, it } from "vitest";
 
+import { createThemeRepository } from "./repository";
 import { setupThemeStorage } from "./setup";
 
 const LEGACY_SCHEMA = `
@@ -25,11 +26,19 @@ const LEGACY_SCHEMA = `
   )
 `;
 
-const createDatabase = () => {
-  const sqlite = new DatabaseSync(":memory:");
+const failOnInsert = (sql: string) => sql.startsWith("INSERT");
+
+const adapt = (
+  sqlite: DatabaseSync,
+  failWhen: (sql: string) => boolean = () => false,
+) => {
   const db = {
     exec: async (sql: string) => sqlite.exec(sql),
     prepare: async (sql: string) => {
+      if (failWhen(sql)) {
+        throw new Error("Simulated database failure");
+      }
+
       const statement = sqlite.prepare(sql);
       return {
         all: async (...params: Parameter[]) => statement.all(...params),
@@ -39,7 +48,12 @@ const createDatabase = () => {
     },
   };
 
-  return { db: db as unknown as Database, sqlite };
+  return db as unknown as Database;
+};
+
+const createDatabase = () => {
+  const sqlite = new DatabaseSync(":memory:");
+  return { db: adapt(sqlite), sqlite };
 };
 
 const insertLegacyTheme = (
@@ -115,6 +129,8 @@ describe("setupThemeStorage", () => {
     expect(await repository.get("ocean-id")).toEqual({
       id: "ocean-id",
       ...PRESETS.find((preset) => preset.name === "Ocean Blue"),
+      description: "A description",
+      author: "someone",
     });
   });
 
@@ -184,5 +200,52 @@ describe("setupThemeStorage", () => {
     await repository.save({ ...first!, name: "Renamed" });
 
     expect((await repository.list())[0]).toMatchObject({ name: "Renamed" });
+  });
+
+  it("adds the presets on the next launch when the first one failed", async () => {
+    const sqlite = new DatabaseSync(":memory:");
+    await expect(
+      setupThemeStorage(adapt(sqlite, failOnInsert)),
+    ).rejects.toThrow();
+
+    const repository = await setupThemeStorage(adapt(sqlite));
+
+    expect(await repository.list()).toHaveLength(PRESETS.length);
+  });
+
+  it("does not add the presets again after the user deleted every theme", async () => {
+    const { db, sqlite } = createDatabase();
+    await setupThemeStorage(db);
+    sqlite.exec("DELETE FROM themes_v2");
+
+    const repository = await setupThemeStorage(db);
+
+    expect(await repository.list()).toEqual([]);
+  });
+});
+
+describe("resetting themes", () => {
+  it("replaces every theme with the presets", async () => {
+    const { db } = createDatabase();
+    const repository = await setupThemeStorage(db);
+    await repository.create({ ...PRESETS[0]!, name: "Mine" });
+
+    await repository.reset();
+
+    expect((await repository.list()).map((theme) => theme.name)).toEqual(
+      PRESETS.map((preset) => preset.name),
+    );
+  });
+
+  it("keeps the current themes when the presets cannot be added", async () => {
+    const { db, sqlite } = createDatabase();
+    const repository = await setupThemeStorage(db);
+    await repository.create({ ...PRESETS[0]!, name: "Mine" });
+    const before = await repository.list();
+
+    const failing = createThemeRepository(adapt(sqlite, failOnInsert));
+    await expect(failing.reset()).rejects.toThrow();
+
+    expect(await repository.list()).toEqual(before);
   });
 });

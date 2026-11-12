@@ -1,6 +1,6 @@
-import { parseJson, type Theme } from "shared";
+import type { ThemeContent } from "shared";
 
-export const downloadTheme = ({ id: _id, ...content }: Theme) => {
+export const downloadTheme = (content: ThemeContent) => {
   const blob = new Blob([JSON.stringify(content, null, 2)], {
     type: "application/json",
   });
@@ -15,13 +15,11 @@ export const downloadTheme = ({ id: _id, ...content }: Theme) => {
 };
 
 export const pickThemeFile = () =>
-  new Promise<unknown>((resolve) => {
+  new Promise<File | undefined>((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      resolve(file === undefined ? undefined : parseJson(await file.text()));
-    };
+    input.onchange = () => resolve(input.files?.[0]);
+    input.oncancel = () => resolve(undefined);
     input.click();
   });

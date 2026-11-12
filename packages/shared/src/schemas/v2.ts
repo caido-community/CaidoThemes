@@ -10,6 +10,12 @@ const HexColorSchema = z
 export const isHexColor = (value: unknown): value is string =>
   HexColorSchema.safeParse(value).success;
 
+export const THEME_LIMITS = {
+  name: 50,
+  description: 300,
+  author: 50,
+};
+
 const TokenColorsSchema = z.object({
   light: HexColorSchema.optional(),
   dark: HexColorSchema.optional(),
@@ -17,9 +23,9 @@ const TokenColorsSchema = z.object({
 
 export const ThemeV2Schema = z.object({
   version: z.literal(2),
-  name: z.string().trim().min(1).max(50),
-  description: z.string().max(300),
-  author: z.string().max(50),
+  name: z.string().trim().min(1).max(THEME_LIMITS.name),
+  description: z.string().max(THEME_LIMITS.description),
+  author: z.string().max(THEME_LIMITS.author),
   tokens: z.partialRecord(z.enum(THEME_TOKENS), TokenColorsSchema),
 });
 

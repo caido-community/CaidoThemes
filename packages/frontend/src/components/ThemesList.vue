@@ -5,16 +5,17 @@ import DataTable from "primevue/datatable";
 import Menu from "primevue/menu";
 import type { MenuItem } from "primevue/menuitem";
 import Tag from "primevue/tag";
-import { useConfirm } from "primevue/useconfirm";
 import type { Theme } from "shared";
 import { computed, ref } from "vue";
 
+import { useConfirmDestructive } from "@/composables/useConfirmDestructive";
+import { useDiscardGuard } from "@/composables/useDiscardGuard";
 import { useThemesStore } from "@/stores/themes";
 
 const {
   themes,
   activeThemeId,
-  editingTheme,
+  draft,
   edit,
   apply,
   turnOff,
@@ -24,41 +25,22 @@ const {
   reset,
 } = useThemesStore();
 
-const confirm = useConfirm();
+const confirmDestructive = useConfirmDestructive();
+const guardUnsavedChanges = useDiscardGuard();
 const actionsMenu = ref<InstanceType<typeof Menu>>();
 
 const selection = computed({
-  get: () => editingTheme.value,
+  get: () => draft.value,
   set: (theme: Theme | undefined) => {
-    if (theme !== undefined) {
-      edit(theme.id);
+    if (theme !== undefined && theme.id !== draft.value?.id) {
+      guardUnsavedChanges(() => edit(theme.id));
     }
   },
 });
 
+const startNewTheme = () => guardUnsavedChanges(() => void create());
+
 const isActive = (theme: Theme) => theme.id === activeThemeId.value;
-
-type DestructiveAction = {
-  header: string;
-  message: string;
-  acceptLabel: string;
-  accept: () => void;
-};
-
-const confirmDestructive = ({
-  header,
-  message,
-  acceptLabel,
-  accept,
-}: DestructiveAction) =>
-  confirm.require({
-    header,
-    message,
-    accept,
-    icon: "fas fa-triangle-exclamation",
-    rejectProps: { label: "Cancel", severity: "contrast", text: true },
-    acceptProps: { label: acceptLabel, severity: "danger" },
-  });
 
 const confirmReset = () =>
   confirmDestructive({
@@ -106,7 +88,7 @@ const menuItems = computed<MenuItem[]>(() => [
   {
     label: "Import theme",
     icon: "fas fa-file-import",
-    command: () => importFromFile(),
+    command: () => guardUnsavedChanges(() => void importFromFile()),
   },
   {
     label: "Turn off theme",
@@ -144,7 +126,7 @@ const toggleActions = (event: Event) => actionsMenu.value?.toggle(event);
         @click="toggleActions"
       />
       <Menu id="themes-actions" ref="actionsMenu" :model="menuItems" popup />
-      <Button label="New theme" icon="fas fa-plus" @click="create" />
+      <Button label="New theme" icon="fas fa-plus" @click="startNewTheme" />
     </div>
 
     <DataTable

@@ -1,6 +1,7 @@
 import { findUneditedPreset } from "./presets";
 import {
   isHexColor,
+  THEME_LIMITS,
   ThemeV1Schema,
   ThemeV2Schema,
   type ThemeContent,
@@ -15,19 +16,30 @@ const darkTokens = (colors: [ThemeToken, unknown][]) =>
     ),
   );
 
+const UNTITLED = "Untitled theme";
+
+const legacyMetadata = (theme: ThemeV1) => {
+  const name = theme.name.trim().slice(0, THEME_LIMITS.name);
+
+  return {
+    name: name === "" ? UNTITLED : name,
+    description: (theme.description ?? "").slice(0, THEME_LIMITS.description),
+    author: (theme.author ?? "").slice(0, THEME_LIMITS.author),
+  };
+};
+
 const fromV1 = (theme: ThemeV1): ThemeContent => {
+  const metadata = legacyMetadata(theme);
   const preset = findUneditedPreset(theme);
   if (preset !== undefined) {
-    return preset;
+    return { ...preset, ...metadata };
   }
 
   const { primary, button } = theme;
 
   return {
     version: 2,
-    name: theme.name,
-    description: theme.description ?? "",
-    author: theme.author ?? "",
+    ...metadata,
     tokens: darkTokens([
       ["--color-surface-page", primary.dark],
       ["--color-surface-subtle", primary.subtle],

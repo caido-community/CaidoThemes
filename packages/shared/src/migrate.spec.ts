@@ -118,4 +118,40 @@ describe("migrateTheme", () => {
 
     expect(migrateTheme(theme)).toBeUndefined();
   });
+
+  it("keeps the description and author a user edited on a legacy preset", () => {
+    const editedOcean = {
+      name: "Ocean Blue",
+      description: "My own description",
+      author: "me",
+      primary: { dark: "#1a2b3c", light: "#3a5a7a", subtle: "#2c4a6a" },
+    };
+
+    expect(migrateTheme(editedOcean)).toEqual({
+      ...PRESETS.find((preset) => preset.name === "Ocean Blue"),
+      description: "My own description",
+      author: "me",
+    });
+  });
+
+  it("shortens legacy fields that are longer than the new limits", () => {
+    const theme = migrateTheme({
+      ...legacyTheme,
+      name: "n".repeat(60),
+      description: "d".repeat(400),
+      author: "a".repeat(60),
+    });
+
+    expect(theme).toMatchObject({
+      name: "n".repeat(50),
+      description: "d".repeat(300),
+      author: "a".repeat(50),
+    });
+  });
+
+  it("names a legacy theme that has no name", () => {
+    expect(migrateTheme({ ...legacyTheme, name: "  " })).toMatchObject({
+      name: "Untitled theme",
+    });
+  });
 });
