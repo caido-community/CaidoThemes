@@ -1,11 +1,11 @@
-export type Result<T> =
-  | { kind: "Error"; error: string }
-  | { kind: "Success"; value: T };
+type Failure = { kind: "Error"; error: string };
+type Success<T> = { kind: "Success"; value: T };
 
-export function ok<T>(value: T): Result<T> {
-  return { kind: "Success", value };
-}
+export type Result<T> = Failure | Success<T>;
 
-export function error<T>(error: string): Result<T> {
-  return { kind: "Error", error };
-}
+export const ok = <T>(value: T): Success<T> => ({ kind: "Success", value });
+
+export const error = (message: string): Failure => ({
+  kind: "Error",
+  error: message,
+});
