@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PRESETS } from "./presets";
 import { ThemeV2Schema } from "./schemas";
+import { SYNTAX_TOKENS } from "./tokens";
 
 describe("PRESETS", () => {
   it.each(PRESETS)("$name is a valid theme", (preset) => {
@@ -20,5 +21,18 @@ describe("PRESETS", () => {
     );
 
     expect(withoutBothSurfaces).toEqual([]);
+  });
+
+  it("gives every built-in theme by bebiks a full syntax palette", () => {
+    const missing = PRESETS.filter(({ author }) => author === "bebiks").flatMap(
+      ({ name, tokens }) =>
+        SYNTAX_TOKENS.filter(
+          (token) =>
+            tokens[token]?.light === undefined ||
+            tokens[token]?.dark === undefined,
+        ).map((token) => `${name} ${token}`),
+    );
+
+    expect(missing).toEqual([]);
   });
 });

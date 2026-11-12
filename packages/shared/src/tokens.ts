@@ -42,7 +42,7 @@ const BUTTON_TOKENS = [
   "--color-fg-on-neutral-subtle",
 ] as const satisfies readonly TokenName[];
 
-const SYNTAX_TOKENS = [
+export const SYNTAX_TOKENS = [
   "--color-syntax-string",
   "--color-syntax-number",
   "--color-syntax-boolean",
@@ -58,6 +58,8 @@ const SYNTAX_TOKENS = [
   "--color-syntax-comment",
   "--color-syntax-query-comment",
 ] as const satisfies readonly TokenName[];
+
+export type SyntaxToken = (typeof SYNTAX_TOKENS)[number];
 
 export const THEME_TOKENS = [
   ...BACKGROUND_TOKENS,
@@ -81,23 +83,23 @@ export const TOKEN_GROUPS: { title: string; tokens: readonly ThemeToken[] }[] =
 
 export const TOKEN_LABELS: Record<ThemeToken, string> = {
   "--color-surface-page": "Page",
-  "--color-surface-subtle": "Subtle, such as striped rows",
-  "--color-surface-raised": "Raised, such as panels and menus",
+  "--color-surface-subtle": "Striped rows",
+  "--color-surface-raised": "Panels and menus",
   "--color-surface-hover": "Hovered item",
   "--color-surface-selected": "Selected item",
-  "--color-fg-default": "Default",
-  "--color-fg-strong": "Strong, such as headings",
-  "--color-fg-subtle": "Subtle",
-  "--color-fg-muted": "Muted, such as hints and placeholders",
+  "--color-fg-default": "Default text",
+  "--color-fg-strong": "Headings",
+  "--color-fg-subtle": "Secondary text",
+  "--color-fg-muted": "Hints and placeholders",
   "--color-fg-link": "Links",
-  "--color-line-subtle": "Subtle, such as dividers",
-  "--color-line-default": "Default",
-  "--color-line-strong": "Strong",
-  "--color-fg-secondary": "Active item text",
+  "--color-line-subtle": "Dividers",
+  "--color-line-default": "Borders",
+  "--color-line-strong": "Strong borders",
+  "--color-fg-secondary": "Accent",
   "--color-line-selected": "Selected item border",
   "--color-line-focus": "Focus ring",
   "--color-surface-selection": "Text selection",
-  "--color-surface-selection-focus": "Text selection in a focused editor",
+  "--color-surface-selection-focus": "Text selection, focused",
   "--color-fill-primary": "Primary button",
   "--color-fg-on-primary": "Primary button text",
   "--color-fill-secondary": "Secondary button",
@@ -122,9 +124,15 @@ export const TOKEN_LABELS: Record<ThemeToken, string> = {
 
 type Derivation = {
   token: TokenName;
-  from: ThemeToken;
+  from: TokenName;
   lightness: Record<Mode, number>;
+  alpha?: number;
 };
+
+const SAME_LIGHTNESS = { light: 0, dark: 0 };
+const BUTTON_HOVER = { light: -0.04, dark: 0.06 };
+const ACCENT_STRONG = { light: -0.16, dark: 0.051 };
+const ACCENT_FILL = { light: 0.238, dark: -0.039 };
 
 export const DERIVATIONS: Derivation[] = [
   {
@@ -153,18 +161,75 @@ export const DERIVATIONS: Derivation[] = [
     lightness: { light: -0.338, dark: 0.28 },
   },
   {
-    token: "--color-fill-primary-hover",
-    from: "--color-fill-primary",
-    lightness: { light: -0.04, dark: 0.06 },
-  },
-  {
-    token: "--color-fill-secondary-hover",
-    from: "--color-fill-secondary",
-    lightness: { light: -0.04, dark: 0.06 },
+    token: "--color-fill-neutral-subtle",
+    from: "--color-surface-raised",
+    lightness: { light: -0.162, dark: 0.128 },
   },
   {
     token: "--color-fill-neutral-subtle-hover",
     from: "--color-fill-neutral-subtle",
-    lightness: { light: -0.04, dark: 0.06 },
+    lightness: { light: -0.114, dark: 0.099 },
+  },
+  {
+    token: "--color-fill-neutral",
+    from: "--color-surface-raised",
+    lightness: { light: -0.316, dark: 0.271 },
+  },
+  {
+    token: "--color-fill-neutral-hover",
+    from: "--color-fill-neutral",
+    lightness: { light: -0.034, dark: 0.037 },
+  },
+  {
+    token: "--color-fill-primary-hover",
+    from: "--color-fill-primary",
+    lightness: BUTTON_HOVER,
+  },
+  {
+    token: "--color-fill-secondary",
+    from: "--color-fg-secondary",
+    lightness: ACCENT_FILL,
+  },
+  {
+    token: "--color-fill-secondary-hover",
+    from: "--color-fill-secondary",
+    lightness: BUTTON_HOVER,
+  },
+  {
+    token: "--color-fg-secondary-strong",
+    from: "--color-fg-secondary",
+    lightness: ACCENT_STRONG,
+  },
+  {
+    token: "--color-line-selected",
+    from: "--color-fg-secondary",
+    lightness: SAME_LIGHTNESS,
+  },
+  {
+    token: "--color-line-secondary",
+    from: "--color-fg-secondary",
+    lightness: SAME_LIGHTNESS,
+  },
+  {
+    token: "--color-line-focus",
+    from: "--color-fg-secondary",
+    lightness: ACCENT_STRONG,
+  },
+  {
+    token: "--color-surface-secondary",
+    from: "--color-fg-secondary",
+    lightness: { light: 0.395, dark: -0.366 },
+  },
+  {
+    token: "--color-surface-selection",
+    from: "--color-fg-secondary",
+    lightness: ACCENT_FILL,
+    alpha: 0.16,
+  },
+  {
+    token: "--color-surface-selection-focus",
+    from: "--color-fg-secondary",
+    lightness: ACCENT_FILL,
+    alpha: 0.24,
   },
 ];
