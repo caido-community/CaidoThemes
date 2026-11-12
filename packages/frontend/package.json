@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Themes",
   "author": "bebiks",
   "license": "CC0-1.0",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@caido/sdk-frontend": "0.41.0",
+    "@caido/sdk-frontend": "0.59.0",
+    "@caido/tokens": "0.1.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^6.1.1",
@@ -21,11 +22,10 @@
     "allotment": "^1.20.2",
     "caido-material-ui": "^1.0.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "zustand": "5.0.0-rc.2"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@caido/sdk-backend": "0.41.0",
+    "@caido/sdk-backend": "0.59.0",
     "@types/node": "^22.7.4",
     "@vitejs/plugin-react": "^4.3.1",
     "backend": "workspace:*",

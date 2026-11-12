@@ -3,6 +3,29 @@ A simple plugin for managing and customizing themes in Caido.
 ![image](https://github.com/user-attachments/assets/39e257b1-dae0-4bd9-900f-4b65edd3f4d1)
 
 
+## Requirements
+Caido 0.60 or later. Themes created with an earlier version of the plugin are migrated automatically the first time it starts.
+
+## Theme format
+A theme sets Caido's design tokens, separately for the light and dark appearance. The editor groups them into backgrounds, text, borders, accent, buttons and editor syntax. Colors must be hex values.
+
+A color that is left out keeps Caido's own value, with one exception: hover and selected backgrounds, borders and button hovers follow the theme's own backgrounds and buttons until you set them yourself.
+
+```json
+{
+  "version": 2,
+  "name": "Ocean Blue",
+  "description": "For when you want your screen to look like a fish tank",
+  "author": "bebiks",
+  "tokens": {
+    "--color-surface-page": { "light": "#eef8ff", "dark": "#18293a" },
+    "--color-fill-primary": { "dark": "#30465a" }
+  }
+}
+```
+
+Themes exported by earlier versions of the plugin can still be imported.
+
 ## Installation [Recommended]
 1. Open Caido and go to the Plugins page.
 2. Go to the **Community Store** tab.

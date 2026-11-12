@@ -1,6 +1,6 @@
 {
   "name": "shared",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Shared types",
   "author": "bebiks",
   "license": "CC0-1.0",
@@ -11,5 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@caido/tokens": "0.1.0"
   }
 }
