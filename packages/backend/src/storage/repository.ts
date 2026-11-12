@@ -9,6 +9,8 @@ import {
   type ThemeContent,
 } from "shared";
 
+import { queryAll, queryOne, run } from "./sql";
+
 export const THEMES_TABLE = "themes_v2";
 
 type ThemeRow = {
@@ -25,28 +27,29 @@ const fromRow = ({ id, data }: ThemeRow) => toTheme(id, parseJson(data));
 
 export const createThemeRepository = (db: Database) => {
   const list = async () => {
-    const statement = await db.prepare(
+    const rows = await queryAll<ThemeRow>(
+      db,
       `SELECT id, data FROM ${THEMES_TABLE} ORDER BY rowid`,
     );
-    const rows = await statement.all<ThemeRow>();
-
     return rows.flatMap((row) => fromRow(row) ?? []);
   };
 
   const get = async (id: string) => {
-    const statement = await db.prepare(
+    const row = await queryOne<ThemeRow>(
+      db,
       `SELECT id, data FROM ${THEMES_TABLE} WHERE id = ?`,
+      id,
     );
-    const row = await statement.get<ThemeRow>(id);
-
     return row === undefined ? undefined : fromRow(row);
   };
 
   const save = async ({ id, ...content }: Theme) => {
-    const statement = await db.prepare(
+    await run(
+      db,
       `INSERT INTO ${THEMES_TABLE} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
+      id,
+      JSON.stringify(content),
     );
-    await statement.run(id, JSON.stringify(content));
   };
 
   const create = async (content: ThemeContent) => {
@@ -56,10 +59,7 @@ export const createThemeRepository = (db: Database) => {
   };
 
   const remove = async (id: string) => {
-    const statement = await db.prepare(
-      `DELETE FROM ${THEMES_TABLE} WHERE id = ?`,
-    );
-    await statement.run(id);
+    await run(db, `DELETE FROM ${THEMES_TABLE} WHERE id = ?`, id);
   };
 
   const reset = async () => {

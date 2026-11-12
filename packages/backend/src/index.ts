@@ -13,7 +13,6 @@ export async function init(sdk: SDK<API, BackendEvents>) {
   const api = createThemesApi(repository);
 
   sdk.api.register("getThemes", api.getThemes);
-  sdk.api.register("getTheme", api.getTheme);
   sdk.api.register("addTheme", api.addTheme);
   sdk.api.register("updateTheme", api.updateTheme);
   sdk.api.register("removeTheme", api.removeTheme);

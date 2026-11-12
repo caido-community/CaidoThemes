@@ -7,15 +7,13 @@
   "type": "module",
   "types": "src/index.ts",
   "scripts": {
-    "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "shared": "workspace:*"
   },
   "devDependencies": {
-    "shared": "workspace:*",
     "@caido/sdk-backend": "0.59.0",
-    "@types/node": "^22.7.4"
+    "@types/node": "22.7.4"
   }
 }

@@ -6,6 +6,7 @@ import {
   type ThemeRepository,
   toTheme,
 } from "./repository";
+import { queryAll, queryOne } from "./sql";
 
 const LEGACY_TABLE = "themes";
 const LEGACY_BACKUP_TABLE = "themes_v1";
@@ -43,11 +44,11 @@ const toLegacyTheme = (row: LegacyRow) => ({
 });
 
 const tableExists = async (db: Database, name: string) => {
-  const statement = await db.prepare(
+  const row = await queryOne(
+    db,
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+    name,
   );
-  const row = await statement.get(name);
-
   return row !== undefined;
 };
 
@@ -55,10 +56,10 @@ const migrateLegacyThemes = async (
   db: Database,
   repository: ThemeRepository,
 ) => {
-  const statement = await db.prepare(
+  const rows = await queryAll<LegacyRow>(
+    db,
     `SELECT * FROM ${LEGACY_TABLE} ORDER BY rowid`,
   );
-  const rows = await statement.all<LegacyRow>();
 
   for (const row of rows) {
     const theme = toTheme(row.id, toLegacyTheme(row));

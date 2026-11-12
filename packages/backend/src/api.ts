@@ -6,11 +6,6 @@ import type { ThemeRepository } from "./storage/repository";
 export const createThemesApi = (repository: ThemeRepository) => ({
   getThemes: async (_sdk: SDK) => ok(await repository.list()),
 
-  getTheme: async (_sdk: SDK, id: string) => {
-    const theme = await repository.get(id);
-    return theme === undefined ? error(`Theme ${id} not found`) : ok(theme);
-  },
-
   addTheme: async (_sdk: SDK, input: unknown) => {
     const content = migrateTheme(input);
     if (content === undefined) {
