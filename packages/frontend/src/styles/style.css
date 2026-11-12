@@ -1,2 +1,5 @@
-@tailwind components;
-@tailwind utilities;
+@reference "tailwindcss/theme.css";
+@reference "@caido/tokens/tokens.css";
+
+@import "tailwindcss/utilities.css" source(none);
+@source "../";

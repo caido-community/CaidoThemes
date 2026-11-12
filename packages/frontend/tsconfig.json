@@ -2,12 +2,11 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "lib": ["DOM", "ESNext"],
-    "types": ["@caido/sdk-backend", "node"],
+    "types": ["@caido/sdk-backend"],
     "baseUrl": ".",
-    "noResolve": false,
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["./src/**/*.tsx", "./src/**/*.ts"]
+  "include": ["./src/**/*.ts", "./src/**/*.vue"]
 }

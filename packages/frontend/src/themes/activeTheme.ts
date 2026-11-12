@@ -8,6 +8,9 @@ export const supportsDesignTokens = () =>
     .getPropertyValue("--color-surface-page")
     .trim() !== "";
 
+export const getCurrentMode = () =>
+  document.documentElement.dataset.mode === "light" ? "light" : "dark";
+
 export const getActiveThemeId = () =>
   localStorage.getItem(STORAGE_KEY) ?? undefined;
 
