@@ -1,94 +1,240 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CaidoSDK } from "@/types";
-import { Theme } from "shared";
-import { handleResult } from "@/utils/api-calls";
-import { create } from "zustand";
-import { resetTheme, usedThemeID } from "@/themes/switcher";
+import {
+  error,
+  isSameTheme,
+  parseJson,
+  type Result,
+  type Theme,
+  type ThemeContent,
+  validateTheme,
+} from "shared";
+import { computed, inject, type InjectionKey, ref } from "vue";
 
-const THEMES_QUERY_KEY = ["themes"];
+import {
+  activateTheme,
+  deactivateTheme,
+  getActiveThemeId,
+} from "@/themes/activeTheme";
+import { downloadTheme, pickThemeFile } from "@/themes/files";
+import type { CaidoSDK } from "@/types";
 
-interface ThemeLocalStore {
-  selectedThemeID: string | null;
-  setSelectedThemeID: (themeID: string | null) => void;
-}
+const NEW_THEME: ThemeContent = {
+  version: 2,
+  name: "New theme",
+  description: "",
+  author: "",
+  tokens: {},
+};
 
-const useThemeLocalStore = create<ThemeLocalStore>((set) => ({
-  selectedThemeID: localStorage.getItem("caidothemes:theme") || null,
-  setSelectedThemeID: (themeID) => set({ selectedThemeID: themeID }),
-}));
+const messageOf = (reason: unknown) =>
+  reason instanceof Error ? reason.message : "Something went wrong";
 
-function useThemes(sdk: CaidoSDK) {
-  return useQuery<Theme[], Error>({
-    queryKey: THEMES_QUERY_KEY,
-    queryFn: () => handleResult(sdk.backend.getThemes(), sdk),
-    staleTime: 1000 * 60 * 5,
-  });
-}
+export const createThemesStore = (sdk: CaidoSDK) => {
+  const themes = ref<Theme[]>([]);
+  const activeThemeId = ref(getActiveThemeId());
+  const editingId = ref<string | undefined>(undefined);
+  const draft = ref<Theme | undefined>(undefined);
 
-function useTheme(sdk: CaidoSDK, themeID: string) {
-  return useQuery<Theme, Error>({
-    queryKey: [THEMES_QUERY_KEY, themeID],
-    queryFn: () => handleResult(sdk.backend.getTheme(themeID), sdk),
-  });
-}
+  const editingTheme = computed(() =>
+    themes.value.find((theme) => theme.id === editingId.value),
+  );
 
-function useUpdateTheme(sdk: CaidoSDK) {
-  const queryClient = useQueryClient();
+  const hasUnsavedChanges = computed(
+    () =>
+      draft.value !== undefined &&
+      editingTheme.value !== undefined &&
+      !isSameTheme(draft.value, editingTheme.value),
+  );
 
-  return useMutation({
-    mutationFn: ({
-      themeID,
-      updatedTheme,
-    }: {
-      themeID: string;
-      updatedTheme: Partial<Theme>;
-    }) => handleResult(sdk.backend.updateTheme(themeID, updatedTheme), sdk),
-    onSuccess: (data) => {
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
-  });
-}
+  const toast = (message: string, variant: "success" | "error") =>
+    sdk.window.showToast(message, { variant });
 
-function useAddTheme(sdk: CaidoSDK) {
-  const queryClient = useQueryClient();
+  const request = async <T>(promise: Promise<Result<T>>) => {
+    const result = await promise.catch((reason: unknown) =>
+      error(messageOf(reason)),
+    );
+    if (result.kind === "Error") {
+      toast(result.error, "error");
+      return undefined;
+    }
 
-  return useMutation({
-    mutationFn: (newTheme: Omit<Theme, "id">) =>
-      handleResult(sdk.backend.addTheme(newTheme), sdk),
-    onSuccess: (data) => {
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
-  });
-}
+    return result.value;
+  };
 
-function useRemoveTheme(sdk: CaidoSDK) {
-  const queryClient = useQueryClient();
+  const load = async () => {
+    const list = await request(sdk.backend.getThemes());
+    if (list !== undefined) {
+      themes.value = list;
+    }
+  };
 
-  return useMutation({
-    mutationFn: (themeID: string) =>
-      handleResult(sdk.backend.removeTheme(themeID), sdk),
-    onSuccess: (data, variables) => {
-      const currentSelectedTheme =
-        useThemeLocalStore.getState().selectedThemeID;
+  const edit = (id: string | undefined) => {
+    editingId.value = id;
+    const theme = themes.value.find((each) => each.id === id);
+    draft.value = theme === undefined ? undefined : { ...theme };
+  };
 
-      if (usedThemeID === variables) {
-        resetTheme();
-      }
+  const closeEditor = () => edit(undefined);
 
-      if (currentSelectedTheme === variables) {
-        useThemeLocalStore.setState({ selectedThemeID: null });
-      }
+  const updateDraft = (changes: Partial<ThemeContent>) => {
+    if (draft.value !== undefined) {
+      draft.value = { ...draft.value, ...changes };
+    }
+  };
 
-      queryClient.setQueryData(THEMES_QUERY_KEY, data);
-    },
-  });
-}
+  const apply = (theme: Theme) => {
+    activateTheme(theme);
+    activeThemeId.value = theme.id;
+  };
 
-export {
-  useThemes,
-  useAddTheme,
-  useRemoveTheme,
-  useThemeLocalStore as useThemeStore,
-  useTheme,
-  useUpdateTheme,
+  const restoreActiveTheme = () => {
+    const active = themes.value.find(
+      (theme) => theme.id === activeThemeId.value,
+    );
+    if (active !== undefined) {
+      apply(active);
+    }
+  };
+
+  const turnOff = () => {
+    deactivateTheme();
+    activeThemeId.value = undefined;
+  };
+
+  const add = async (input: unknown) => {
+    const theme = await request(sdk.backend.addTheme(input));
+    if (theme !== undefined) {
+      await load();
+      edit(theme.id);
+    }
+
+    return theme;
+  };
+
+  const create = () => add(NEW_THEME);
+
+  const importFromFile = async () => {
+    const file = await pickThemeFile();
+    if (file === undefined) {
+      return;
+    }
+
+    const text = await file.text().catch(() => undefined);
+    if (text === undefined) {
+      toast("The file could not be read", "error");
+      return;
+    }
+
+    const theme = await add(parseJson(text));
+    if (theme !== undefined) {
+      toast("Theme imported", "success");
+    }
+  };
+
+  const exportTheme = ({ id: _id, ...content }: Theme) => {
+    const result = validateTheme(content);
+    if (result.kind === "Error") {
+      toast(result.error, "error");
+      return;
+    }
+
+    downloadTheme(result.value);
+  };
+
+  const saveDraft = async () => {
+    if (draft.value === undefined) {
+      return undefined;
+    }
+
+    const { id, ...content } = draft.value;
+    const theme = await request(sdk.backend.updateTheme(id, content));
+    if (theme !== undefined) {
+      await load();
+      edit(theme.id);
+    }
+
+    return theme;
+  };
+
+  const save = async () => {
+    const theme = await saveDraft();
+    if (theme === undefined) {
+      return;
+    }
+
+    if (activeThemeId.value === theme.id) {
+      apply(theme);
+    }
+    toast("Theme saved", "success");
+  };
+
+  const saveAndApply = async () => {
+    const theme = await saveDraft();
+    if (theme === undefined) {
+      return;
+    }
+
+    apply(theme);
+    toast("Theme saved and applied", "success");
+  };
+
+  const remove = async (id: string) => {
+    const removedId = await request(sdk.backend.removeTheme(id));
+    if (removedId === undefined) {
+      return;
+    }
+
+    if (activeThemeId.value === id) {
+      turnOff();
+    }
+    if (editingId.value === id) {
+      closeEditor();
+    }
+    await load();
+  };
+
+  const reset = async () => {
+    const list = await request(sdk.backend.resetThemes());
+    if (list === undefined) {
+      return;
+    }
+
+    turnOff();
+    closeEditor();
+    themes.value = list;
+    toast("Built-in themes restored", "success");
+  };
+
+  return {
+    themes,
+    activeThemeId,
+    draft,
+    hasUnsavedChanges,
+    load,
+    edit,
+    closeEditor,
+    updateDraft,
+    apply,
+    restoreActiveTheme,
+    turnOff,
+    create,
+    importFromFile,
+    exportTheme,
+    save,
+    saveAndApply,
+    remove,
+    reset,
+  };
+};
+
+type ThemesStore = ReturnType<typeof createThemesStore>;
+
+export const ThemesStoreKey: InjectionKey<ThemesStore> = Symbol("ThemesStore");
+
+export const useThemesStore = () => {
+  const store = inject(ThemesStoreKey);
+  if (store === undefined) {
+    throw new Error("useThemesStore must be used inside the Caido Themes app");
+  }
+
+  return store;
 };

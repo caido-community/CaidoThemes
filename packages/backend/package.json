@@ -1,21 +1,19 @@
 {
   "name": "backend",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Backend for Caido Themes",
   "author": "bebiks",
   "license": "CC0-1.0",
   "type": "module",
   "types": "src/index.ts",
   "scripts": {
-    "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "shared": "workspace:*"
   },
   "devDependencies": {
-    "shared": "workspace:*",
-    "@caido/sdk-backend": "0.41.0",
-    "@types/node": "^22.7.4"
+    "@caido/sdk-backend": "0.59.0",
+    "@types/node": "22.7.4"
   }
 }

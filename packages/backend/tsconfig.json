@@ -2,10 +2,6 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "types": ["@caido/sdk-backend"],
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["src/*"]
-    },
     "disableSourceOfProjectReferenceRedirect": true,
     "composite": true,
     "importsNotUsedAsValues": "remove"
